@@ -72,9 +72,10 @@ class IndexBuilder:
         result = np.vstack(all_embeddings)
         
         elapsed = time.time() - start_time
+        rate = len(documents) / elapsed if elapsed > 0 else 0
         logger.info(
             f"✓ Embedded {len(documents)} documents in {elapsed:.1f}s "
-            f"({len(documents)/elapsed:.0f} docs/sec)"
+            f"({rate:.0f} docs/sec)"
         )
         
         return result
@@ -126,6 +127,11 @@ class IndexBuilder:
     
     def add_documents(self, documents: List[str], metadata: List[dict]):
         """Add new documents to an existing index."""
+        if len(documents) != len(metadata):
+            raise ValueError(
+                f"Document count ({len(documents)}) != metadata count ({len(metadata)})"
+            )
+        
         if self.index is None:
             # Create new index
             return self.build_index(documents, metadata)
@@ -154,11 +160,33 @@ class IndexBuilder:
         logger.info(f"✓ Saved metadata to {metadata_path}")
     
     def load(self, index_path: str, metadata_path: str) -> bool:
-        """Load index and metadata from disk."""
+        """Load index and metadata from disk.
+        
+        Loads metadata first (smaller file) to fail fast on corruption,
+        then loads the FAISS index.
+        """
+        loaded_index = None
+        loaded_metadata = []
+        
         try:
-            self.index = faiss.read_index(str(index_path))
+            # Load metadata first (smaller, fail fast on corruption)
             with open(metadata_path, 'r', encoding='utf-8') as f:
-                self.metadata = json.load(f)
+                loaded_metadata = json.load(f)
+            
+            # Then load the FAISS index
+            loaded_index = faiss.read_index(str(index_path))
+            
+            # Validate consistency
+            if loaded_index.ntotal != len(loaded_metadata):
+                logger.error(
+                    f"Index/metadata mismatch: {loaded_index.ntotal} vectors "
+                    f"vs {len(loaded_metadata)} metadata entries"
+                )
+                return False
+            
+            # Only assign to self after both succeed
+            self.index = loaded_index
+            self.metadata = loaded_metadata
             
             logger.info(
                 f"✓ Loaded index with {self.index.ntotal} vectors "
@@ -171,17 +199,12 @@ class IndexBuilder:
             return False
         except json.JSONDecodeError as e:
             logger.error(f"Corrupted metadata file: {e}")
-            self.index = None
-            self.metadata = []
             return False
         except PermissionError as e:
             logger.error(f"Permission denied accessing index files: {e}")
             return False
         except Exception as e:
-            # Catch FAISS errors and other unexpected issues
             logger.error(f"Failed to load index: {type(e).__name__}: {e}")
-            self.index = None
-            self.metadata = []
             return False
     
     @property

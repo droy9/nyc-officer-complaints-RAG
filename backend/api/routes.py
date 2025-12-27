@@ -111,21 +111,21 @@ async def upload_document(
     Supported formats: PDF, DOCX, TXT
     Maximum size: 50MB
     """
-    # Validate file type
+    # Validate file type - raise proper HTTP error
     suffix = Path(file.filename).suffix.lower()
     if suffix not in pipeline.supported_file_types:
-        return UploadResponse(
-            success=False,
-            error=f"Unsupported file type: {suffix}. Supported: {pipeline.supported_file_types}"
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {suffix}. Supported: {pipeline.supported_file_types}"
         )
     
-    # Validate file size (50MB max)
+    # Validate file size (50MB max) - raise proper HTTP error
     max_size = 50 * 1024 * 1024
     content = await file.read()
     if len(content) > max_size:
-        return UploadResponse(
-            success=False,
-            error=f"File too large. Maximum size: 50MB"
+        raise HTTPException(
+            status_code=413,
+            detail="File too large. Maximum size: 50MB"
         )
     
     # Save to temp file
@@ -156,10 +156,7 @@ async def upload_document(
         
     except Exception as e:
         logger.error(f"Upload failed: {e}")
-        return UploadResponse(
-            success=False,
-            error=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))
         
     finally:
         # Clean up temp file

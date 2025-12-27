@@ -93,9 +93,11 @@ Document Study & Reference API powered by RAG (Retrieval-Augmented Generation).
 
 config = get_config()
 
+# Use configured origins only - wildcard defeats the purpose of CORS
+# For local development, ensure localhost origins are in config.cors_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.cors_origins + ["*"],  # Allow all for development
+    allow_origins=config.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
