@@ -25,19 +25,20 @@ const DocumentUpload = ({ onUpload, onClose }) => {
 
   const handleFiles = useCallback((fileList) => {
     const validFiles = []
-    let errorMsg = null
+    const errors = []
 
     Array.from(fileList).forEach(file => {
       const err = validateFile(file)
       if (err) {
-        errorMsg = err
+        errors.push(err)
       } else {
         validFiles.push(file)
       }
     })
 
-    if (errorMsg) {
-      setError(errorMsg)
+    if (errors.length > 0) {
+      // Show all validation errors, not just the last one
+      setError(errors.join('; '))
     } else {
       setError(null)
     }

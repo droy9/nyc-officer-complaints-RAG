@@ -52,7 +52,10 @@ class TextProcessor:
                         end = start + len(chunk)
                         break
             
-            chunks.append(chunk.strip())
+            # Only append non-empty chunks after stripping
+            stripped_chunk = chunk.strip()
+            if stripped_chunk:
+                chunks.append(stripped_chunk)
             
             if end >= len(text):
                 break
