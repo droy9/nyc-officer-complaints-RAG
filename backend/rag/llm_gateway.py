@@ -147,19 +147,21 @@ class LLMGateway:
                 logger.warning(f"LLM call failed (attempt {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
                     time.sleep(2 ** attempt)
-                else:
-                    return LLMResponse(
-                        content="", 
-                        model=self.model, 
-                        success=False,
-                        error=f"LLM call failed after {max_retries} attempts: {e}"
-                    )
+                    continue
+                # Final attempt failed - return error
+                return LLMResponse(
+                    content="", 
+                    model=self.model, 
+                    success=False,
+                    error=f"LLM call failed after {max_retries} attempts: {e}"
+                )
         
+        # This should only be reached if max_retries is 0
         return LLMResponse(
             content="", 
             model=self.model, 
             success=False,
-            error="Unexpected error"
+            error="No retry attempts configured"
         )
 
 

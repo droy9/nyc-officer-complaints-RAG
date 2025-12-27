@@ -157,7 +157,7 @@ class IndexBuilder:
         """Load index and metadata from disk."""
         try:
             self.index = faiss.read_index(str(index_path))
-            with open(metadata_path, 'r') as f:
+            with open(metadata_path, 'r', encoding='utf-8') as f:
                 self.metadata = json.load(f)
             
             logger.info(
@@ -167,7 +167,21 @@ class IndexBuilder:
             return True
             
         except FileNotFoundError as e:
-            logger.warning(f"Could not load index: {e}")
+            logger.warning(f"Index files not found: {e}")
+            return False
+        except json.JSONDecodeError as e:
+            logger.error(f"Corrupted metadata file: {e}")
+            self.index = None
+            self.metadata = []
+            return False
+        except PermissionError as e:
+            logger.error(f"Permission denied accessing index files: {e}")
+            return False
+        except Exception as e:
+            # Catch FAISS errors and other unexpected issues
+            logger.error(f"Failed to load index: {type(e).__name__}: {e}")
+            self.index = None
+            self.metadata = []
             return False
     
     @property
